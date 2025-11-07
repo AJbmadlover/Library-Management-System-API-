@@ -9,7 +9,7 @@ const {getAllBooks,
 const { protect, adminOnly } = require("../middleware/authMiddleware");
 
 // private routes
-router.get("/", protect,getAllBooks);
+router.get("/",getAllBooks);
 router.get("/:id", protect, getBookById);
 
 // Admin routes

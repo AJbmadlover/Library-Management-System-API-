@@ -6,35 +6,52 @@ const { calculateFine } = require("../utils/calculateFine");
 //borrow a book
 exports.borrowBook = async (req, res) => {
   try {
-    const { bookId } = req.body;
+    const { bookId, title } = req.body;
 
-    const book = await Book.findById(bookId);
-    if (!book) return res.status(404).json({ message: "Book not found" });
+    let book;
+    if (bookId) {
+      book = await Book.findOne({ _id: bookId, isDeleted: false });
+    } else if (title) {
+      book = await Book.findOne({ title: new RegExp(title, "i"), isDeleted: false });
+    } else {
+      return res.status(400).json({ message: "Please provide bookId or title" });
+    }
+
+    if (!book) return res.status(404).json({ message: "Book not found or deleted" });
     if (book.availableCopies <= 0)
-      return res.status(400).json({ message: "No available copies of this book " });
+      return res.status(400).json({ message: "No available copies of this book" });
 
-    // Auto-set due date to 2 weeks from now
+
+    // 📅 Set borrow and due dates
     const borrowDate = new Date();
     const dueDate = new Date(borrowDate.getTime() + 14 * 24 * 60 * 60 * 1000);
 
+    // 🧾 Create a borrow record (book ID guaranteed)
     const borrowRecord = await BorrowRecord.create({
       user: req.user._id,
-      book: bookId,
+      book: book._id, // ✅ Always use the actual book _id
       borrowDate,
       dueDate,
     });
+
+    // 👤 Add record to user
     await User.findByIdAndUpdate(req.user._id, {
-        $push: { borrowedBooks: borrowRecord._id }
+      $push: { borrowedBooks: borrowRecord._id },
     });
 
+    // 📉 Reduce available copies
     book.availableCopies -= 1;
     await book.save();
 
-    res.status(201).json({ message: "Book borrowed successfully", borrowRecord });
+    res
+      .status(201)
+      .json({ message: "Book borrowed successfully", borrowRecord });
   } catch (error) {
+    console.error(error);
     res.status(500).json({ message: error.message });
   }
 };
+
 
 // Return a book
 exports.returnBook = async (req, res) => {
@@ -85,19 +102,94 @@ exports.returnBook = async (req, res) => {
 };
 // View all borrow records (admin only)
 exports.getAllBorrowRecords = async (req, res) => {
-  try {
-    const records = await BorrowRecord.find()
+try {
+
+  //to accept user query by name 
+    const { name } = req.query;
+    const now = new Date();
+
+    // Build base query
+    let query = {};
+
+    // 🔍 If a name is provided, find matching users first
+    if (name) {
+      const matchingUsers = await User.find(
+        { name: new RegExp(name, "i") }, // case-insensitive match
+        "_id"
+      );
+
+      if (matchingUsers.length === 0) {
+        return res.status(404).json({ message: "No user found with that name" });
+      }
+
+      query.user = { $in: matchingUsers.map((u) => u._id) };
+    }
+    const records = await BorrowRecord.find(query)
       .populate("user", "name email")
       .populate("book", "title author category");
-    res.status(200).json(records);
+
+    const updates = records.map(async record => {
+      const due = new Date(record.dueDate);
+      let shouldUpdate = false;
+
+      if (record.status === "borrowed" && now.getTime() > due.getTime()) {
+        record.status = "overdue";
+        record.fineAmount = Math.max(0, Math.floor((now - due) / (1000 * 60 * 60 * 24)) * 100);
+        shouldUpdate = true;
+      }
+
+      if (shouldUpdate) {
+        await record.save();
+      }
+
+      return record;
+    });
+
+    const updatedRecords = await Promise.all(updates);
+
+    res.status(200).json(updatedRecords);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 };
 
+exports.getBorrowRecord = async (req, res) => {
+  const { recordId } = req.params; 
+
+  try {
+    const record = await BorrowRecord.findById(recordId)
+      .populate("user", "name email")    
+      .populate("book", "title category"); 
+    if (!record) {
+      return res.status(404).json({ message: "Borrow record not found." });
+    }
+     // 🔹 Recalculate overdue/fine dynamically
+    const now = new Date();
+    const due = new Date(record.dueDate);
+   
+    if (now > due) {
+      // overdue
+      record.status = "overdue";
+      const daysLate = Math.floor((now - due) / (1000 * 60 * 60 * 24));
+      record.fineAmount = daysLate * 100;
+    } else if (record.status === "overdue" && now <= due) {
+      // due date extended, revert to borrowed
+      record.status = "borrowed";
+      record.fineAmount = 0;
+    }
+
+    await record.save(); // persist changes
+    res.status(200).json(record); 
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Server error fetching record." });
+  }
+};
+
+
 // View current user's borrow history
 exports.getUserBorrowRecords = async (req, res) => {
-
   try {
     const user = await User.findById(req.user._id)
       .populate({
@@ -107,32 +199,80 @@ exports.getUserBorrowRecords = async (req, res) => {
 
     if (!user) return res.status(404).json({ message: "User not found" });
 
-    // Update statuses dynamically
     const now = new Date();
-    const records = user.borrowedBooks.map(record => {
-      if (record.status === "borrowed" && record.dueDate < now) {
+
+    // Update overdue status and fines for any borrowed books
+    const updates = user.borrowedBooks.map(async record => {
+      const due = new Date(record.dueDate);
+      let shouldUpdate = false;
+
+      if (record.status === "borrowed" && now.getTime() > due.getTime()) {
         record.status = "overdue";
-      } else if (record.status === "borrowed" && record.dueDate >= now) {
-        record.status = "reading"; // 👈 custom state for “still with book”
+        record.fineAmount = Math.max(0, Math.floor((now - due) / (1000 * 60 * 60 * 24)) * 100);
+        shouldUpdate = true;
+      } else if (record.status === "borrowed" && now.getTime() <= due.getTime()) {
+        record.status = "reading"; // still borrowed but not overdue
+        shouldUpdate = true;
       }
+
+      if (shouldUpdate) {
+        await record.save(); // persist changes
+      }
+
       return record;
     });
 
+    await Promise.all(updates);
+
     res.status(200).json({
-      totalBorrowed: records.length,
-      records: records.map(record => ({
+      totalBorrowed: user.borrowedBooks.length,
+      records: user.borrowedBooks.map(record => ({
         title: record.book.title,
         author: record.book.author,
         category: record.book.category,
         status: record.status,
         dueDate: record.dueDate,
         returnDate: record.returnDate,
+        fineAmount: record.fineAmount,
       })),
     });
+
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 };
+
+
+// @desc Update fine or due date
+// @route PATCH /api/borrow/:recordId
+// @access Admin
+exports.updateBorrowRecord = async (req, res) => {
+  try {
+    const { recordId } = req.params;  // ✅ matches route
+    const { fineAmount, dueDate } = req.body;
+
+    // find record
+    const record = await BorrowRecord.findById(recordId);
+    if (!record) {
+      return res.status(404).json({ message: "Borrow record not found" });
+    }
+
+    // ✅ update allowed fields safely
+    if (fineAmount !== undefined) record.fineAmount = fineAmount;
+    if (dueDate !== undefined) record.dueDate = new Date(dueDate);
+
+    await record.save();
+
+    res.status(200).json({
+      message: "Record updated successfully",
+      record,
+    });
+  } catch (error) {
+    console.error("Update error:", error);
+    res.status(500).json({ message: "Server error while updating record" });
+  }
+};
+
 
 // @desc Get all overdue borrow records
 // @route GET /api/borrow/overdue

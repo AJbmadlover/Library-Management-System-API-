@@ -1,25 +1,38 @@
 const Book = require("../models/bookModel");
 
-// @desc Get all books (filter by title, author, category)
+// @desc Get all books (search by title, author, category)
 // @route GET /api/books
 // @access private
 exports.getAllBooks = async (req, res) => {
   try {
-    const { title, author, category } = req.query;
+    const { search } = req.query;
 
-    const filter = { isDeleted: false };
-// we use RegExp with /i to tell the code they are responsible for search and filter, and the search should be case insensitive
-    if (title) filter.title = new RegExp(title, "i");
-    if (author) filter.author = new RegExp(author, "i");
-    if (category) filter.category = new RegExp(category, "i");
+    if (!search) {
+      const allBooks = await Book.find({ isDeleted: false }).sort({ createdAt: -1 }); // ✅ fixed
+      return res.status(200).json(allBooks);
+    }
 
-    const books = await Book.find(filter).sort({ createdAt: -1 }); //find the book that matches the filter request and sort it by last created
+    // Otherwise, search by title, author, or category
+    const books = await Book.find({
+      isDeleted: false,
+      $or: [
+        { title: { $regex: search, $options: "i" } },
+        { author: { $regex: search, $options: "i" } },
+        { category: { $regex: search, $options: "i" } },
+      ],
+    });
+
+    if (books.length === 0) {
+      return res.status(404).json({ message: "No books found" });
+    }
 
     res.status(200).json(books);
   } catch (error) {
-    res.status(500).json({ message: "Server error", error: error.message });
+    console.error(error);
+    res.status(500).json({ message: "Server error" });
   }
 };
+
 
 // @desc Get a single book by ID
 // @route GET /api/books/:id

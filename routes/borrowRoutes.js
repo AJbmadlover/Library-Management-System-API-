@@ -8,6 +8,8 @@ const {
   getUserBorrowRecords,
   getAllOverdueRecords,
   viewAllUsersBorrowHistory,
+  updateBorrowRecord,
+  getBorrowRecord
 } = require("../controllers/borrowController");
 
 // Member borrows a book
@@ -19,7 +21,11 @@ router.put("/return/:recordId", protect, returnBook);
 // Admin: view all records
 router.get("/borrowed", protect, adminOnly, getAllBorrowRecords);
 router.get("/overdue", protect, adminOnly, getAllOverdueRecords); //to view all overdue books with members
-router.get("/borrowed/:userId",protect, adminOnly, viewAllUsersBorrowHistory)
+router.get("/borrowed/history/:userId",protect, adminOnly, viewAllUsersBorrowHistory)//to view all the records of a particular user
+
+// Admin: update borrow record (fine or due date)
+router.get("/borrowed/:recordId", protect, adminOnly, getBorrowRecord)
+router.patch("/borrowed/:recordId", protect, adminOnly, updateBorrowRecord);
 
 // Member: view their own records
 router.get("/myhistory", protect, getUserBorrowRecords);

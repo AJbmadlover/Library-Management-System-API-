@@ -6,9 +6,9 @@ const bookSchema = new mongoose.Schema({
   isbn: { type: String, unique: true },
   category: {
     type: String,
-    enum: ['Fiction', 'Non-Fiction', 'Science', 'Technology', 
+    enum: ['Fiction', 'Non-Fiction', 'Romance', 'Technology', 
             'History', 'Children', 'Education', 'Fantasy',
-            'Biography','Other'],
+            'Biography', 'Erotica','Horror', 'Other'],
     required: true
   },
   publishedYear: Number,

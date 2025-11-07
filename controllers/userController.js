@@ -7,6 +7,7 @@ const bcrypt = require("bcryptjs");
 const generateToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: "7d" });
 };
+const tokenBlacklist = [];
 
 // @desc Register new user
 // @route POST /api/users/signup
@@ -84,6 +85,18 @@ module.exports.signin = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+//  Logout controller
+exports.logout = async (req, res) => {
+  try {
+    const token = req.header("Authorization")?.replace("Bearer ", "");
+    if (!token) return res.status(400).json({ message: "No token provided" });
+
+    tokenBlacklist.push(token); // invalidate token
+    res.json({ message: "Logged out successfully" });
+  } catch (error) {
+    res.status(500).json({ message: "Server error" });
+  }
+};
 
 // @desc Get current logged-in user
 // @route GET /api/users/me
@@ -154,19 +167,6 @@ module.exports.profile = async (req, res) => {
     });
   } catch (error) {
     res.status(500).json({ message: error.message });
-  }
-};
-
-//  Logout controller
-exports.logout = async (req, res) => {
-  try {
-    const token = req.header("Authorization")?.replace("Bearer ", "");
-    if (!token) return res.status(400).json({ message: "No token provided" });
-
-    tokenBlacklist.push(token); // invalidate token
-    res.json({ message: "Logged out successfully" });
-  } catch (error) {
-    res.status(500).json({ message: "Server error" });
   }
 };
 

@@ -6,8 +6,8 @@ const { protect,adminOnly } = require("../middleware/authMiddleware");
 
 router.post("/signup", signup);
 router.post("/login", signin);
-router.get("/myprofile", protect, profile);
-router.post("/logout", protect, logout);
+router.get("/myprofile", protect, profile);//user summary
+router.post("/logout", protect, logout); //logout 
 
 // Admin: view any user’s profile + fine details
 router.get("/:userId/profile", protect, adminOnly, getUserProfileByAdmin);
