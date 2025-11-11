@@ -68,6 +68,10 @@ app.get("/api/users/admin/borrowedrecords", (req,res)=>{
   res.sendFile(path.join(__dirname, "public", "borrowRecords.html"));
 })
 
+app.get("/api/users/admin/overdue", (req,res)=>{
+  res.sendFile(path.join(__dirname, "public", "overDue.html"));
+})
+
 app.get("/api/users/summary", (req,res)=>{
   res.sendFile(path.join(__dirname, "public", "summary.html"))
 })

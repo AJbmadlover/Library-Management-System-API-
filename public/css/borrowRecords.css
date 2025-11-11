@@ -268,7 +268,7 @@ button {
 
 }
 body.dark .edit{
-  background: hsla(220, 60%, 21%, 0.9);
+  background: #2563eb;
 }
 
 /* Show More Button */

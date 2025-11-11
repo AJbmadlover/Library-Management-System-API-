@@ -182,7 +182,7 @@ tr:hover {
 }
 /*===========EDIT AND DELETE BUTTON=========*/
 button {
-  background: #2563eb;
+  background: #2563eb; 
   color: #fff;
   border: none;
   padding: 0.7rem 1.5rem;
@@ -194,7 +194,7 @@ button {
 
 }
 .edit{
-  background: hsla(220, 43%, 34%, 0.9);
+  background: #2563eb;
 }
 .delete{
   background: hsla(0, 90%, 33%, 0.900);  

@@ -41,7 +41,7 @@ themeToggle.addEventListener('click', () => {
 // DOM elements
 const welcomeText = document.getElementById("admin-name");
 const cards = document.querySelectorAll(".card p");
-const borrowRecordsTable = document.querySelector(".borrowed tbody");
+const popularBooksTable = document.querySelector(".borrowed tbody");
 // --- ✨ Show temporary loading states
   welcomeText.textContent = "Loading...";
   cards[0].textContent = "Loading...";
@@ -49,7 +49,7 @@ const borrowRecordsTable = document.querySelector(".borrowed tbody");
   cards[2].textContent = "Loading...";
   cards[3].textContent = "Loading...";
 
-  borrowRecordsTable.innerHTML =
+  popularBooksTable.innerHTML =
     '<tr><td colspan="4">Loading records...</td></tr>';
 
 try {
@@ -100,30 +100,27 @@ try {
     });
 
   // --- 3️⃣ Fetch Borrow Records
-    const borrowedRes = await fetch("/api/borrowed", { headers });
-    if (!borrowedRes.ok) throw new Error("Failed to fetch borrow records");
-    const borrowRecords = await borrowedRes.json();
+    const popularRes = await fetch("/api/summary", { headers });
+    if (!popularRes.ok) throw new Error("Failed to fetch borrow records");
+    const mostBorrowed = await popularRes.json();
+    const mostBorrowedBooks = mostBorrowed.highlights.mostBorrowedBooks;
 
     // --- 🧾 Clear placeholder rows
-    borrowRecordsTable.innerHTML = "";
+    popularBooksTable.innerHTML = "";
 
-    if (borrowRecords.length === 0) {
-      borrowRecordsTable.innerHTML =
-        '<tr><td colspan="4">No records found</td></tr>';
+    if (mostBorrowedBooks.length === 0) {
+      popularBooksTable.innerHTML =
+        '<tr><td colspan="4">No Activity</td></tr>';
     } else {
-      borrowRecords.forEach((record) => {
+      mostBorrowedBooks.forEach((record, i) => {
         const tr = document.createElement("tr");
-
-        let bDate =new Date(record.borrowDate);
-        let rDate = new Date(record.dueDate);
         tr.innerHTML = `
-          <td>${record.user.name}</td>
-          <td>${record.book.title}</td>
-          <td>${bDate.toLocaleDateString()}</td>
-          <td>${rDate.toLocaleDateString()}</td>
-          <td>${record.status}</td>
+          <td>${i + 1}</td>
+          <td>${record.title}</td>
+          <td>${record.category}</td>
+          <td>${record.borrowCount}</td>
         `;
-        borrowRecordsTable.appendChild(tr);
+        popularBooksTable.appendChild(tr);
       });
     }
 
@@ -131,7 +128,7 @@ try {
 }
 catch(error){
   console.error(error);
-  borrowRecordsTable.innerHTML = 
+  popularBooksTable.innerHTML = 
       '<tr><td colspan="4">Error loading records.</td></tr>';
 }
 

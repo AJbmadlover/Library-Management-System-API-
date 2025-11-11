@@ -53,7 +53,8 @@ let showingAll = false; // toggle state
 
 
 //================DATA FOR THE CARDS========================
-try{
+async function updatecards(){
+  try{
     const res = await fetch ("/api/borrowed", {headers})
     if(!res.ok){showError(error)}
     
@@ -73,7 +74,8 @@ try{
 }catch(error){
     showError(error || "Error loading cards.")
 }
-
+}
+setInterval(updatecards,1000);
 
 async function fetchRecords(){
   try{
@@ -167,7 +169,7 @@ tableBody.addEventListener("click", async (e) => {
       editForm.status.value = record.status;  
       editForm.fineAmount.value = record.fineAmount || 0;
 
-      // Attach current row reference (so we can update it later)
+      // Attach current row reference (so I can update it later)
       editForm.dataset.rowIndex = row.rowIndex;
 
       editModal.style.display = "block";
@@ -203,17 +205,20 @@ editForm.addEventListener("submit", async (e) => {
     const data = await res.json();
     if (!res.ok) throw new Error(data.message || "Update failed.");
 
-    // === Update table row instantly (no reload)
+    //=== Function to Update table row instantly (no reload)
+    const updateTableRow = (recordId, updatedData) => {
+
     const rowIndex = Number(editForm.dataset.rowIndex);
     const editedRow = tableBody.rows[rowIndex - 1]; // adjust if table has a header row
 
-    // assuming your columns are: Member | Book | Borrow Date | Due Date | Return Date | Fine | Actions
+
     const cells = editedRow.querySelectorAll("td");
 
     // Keep position, just update visible fields
     cells[3].textContent = updatedRecord.dueDate; // Due Date
     cells[6].textContent = "₦" + updatedRecord.fineAmount; // Fine Amount
-
+    }
+    updateTableRow(id, updatedRecord);
     editModal.style.display = "none";
     showSuccess("Record updated successfully!");
   } catch (err) {

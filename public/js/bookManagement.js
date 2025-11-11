@@ -219,9 +219,7 @@ form.addEventListener("submit", async (e) => {
         // ✅ Update allBooks
         const bookIndex = allBooks.findIndex(b => b._id === id);
         if (bookIndex > -1) {
-          // Soft delete: mark as deleted
           allBooks[bookIndex].isDeleted = true;
-          // Or for hard delete: allBooks.splice(bookIndex, 1);
       }
 
       // ✅ Re-render table to show top 5

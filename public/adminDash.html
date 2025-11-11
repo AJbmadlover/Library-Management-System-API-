@@ -21,7 +21,7 @@
         <a href="#"><i class="icon">👥</i> Users Management</a>
         <a href="/api/users/admin/bookmanagement"><i class="icon">📚</i> Books Management</a>
         <a href="/api/users/admin/borrowedrecords"><i class="icon">📖</i> Borrowed Records</a>
-        <a href="#"><i class="icon">⚠️</i> Overdue Records</a>
+        <a href="/api/users/admin/overdue"><i class="icon">⚠️</i> Overdue Records</a>
       </nav>
       <button class="logout" id="logoutBtn"><i class="icon">↩️</i> Logout</button>
     </aside>
@@ -87,7 +87,7 @@
             <canvas id="activityChart"></canvas>
           </div>
           <div class="chart-box">
-            <h3>Books by Category</h3>
+            <h3>Borrowed Books by Category</h3>
             <canvas id="categoryChart"></canvas>
           </div>
         </div>
@@ -96,15 +96,14 @@
 
       <!-- Table section -->
       <div class="borrowed">
-        <h2>Recent borrowed books</h2>
+        <h2>Most borrowed books</h2>
         <table>
           <thead>
             <tr>
-              <th>Member</th>
+              <th>Rank</th>
               <th>Book Title</th>
-              <th>Borrow Date</th>
-              <th>Return Date</th>
-              <th>Status</th>
+              <th>Category</th>
+              <th>Borrow Count</th>
             </tr>
           </thead>
           <tbody>

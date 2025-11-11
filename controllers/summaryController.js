@@ -39,11 +39,38 @@ exports.getSummary = async (req, res) => {
       : {};
 
     // 📊 Parallel DB calls for efficiency
-    const [totalUsers, totalBooks, borrowRecords] = await Promise.all([
+    const [totalUsers, totalBooks, borrowRecords, mostBorrowedBooks] = await Promise.all([
       User.countDocuments(),
       Book.countDocuments(),
-      BorrowRecord.find(filter).populate("book", "category title")
-    ]);
+      BorrowRecord.find(filter).populate("book", "category title"),
+      BorrowRecord.aggregate([
+    Object.keys(dateFilter).length 
+      ? { $match: { borrowDate: dateFilter } }
+      : { $match: {} },
+    { $group: { _id: "$book", borrowCount: { $sum: 1 } } },
+    { $sort: { borrowCount: -1 } }, //sort by highest count 
+    { $limit: 5 }, //top 5 most borrowed books
+    {
+      $lookup: {
+        from: "books",
+        localField: "_id",
+        foreignField: "_id",
+        as: "bookInfo"
+      }
+    },
+    { $unwind: "$bookInfo" },
+    {
+      $project: {
+        _id: 0,
+        bookId: "$bookInfo._id", //display book id too
+        title: "$bookInfo.title", //display book title
+        category: "$bookInfo.category",//display book category
+        borrowCount: 1
+      }
+    }
+  ])
+]);
+
 
     // 🧮 Compute analytics
     const borrowedBooks = borrowRecords.filter(b => b.status === "borrowed").length;
@@ -64,6 +91,8 @@ exports.getSummary = async (req, res) => {
       monthlyStats[month] = (monthlyStats[month] || 0) + 1;
     });
 
+
+
     // 📦 Prepare API response
     res.status(200).json({
       stats: {
@@ -72,7 +101,7 @@ exports.getSummary = async (req, res) => {
         borrowedBooks,
         overdueBooks,
         returnedBooks,
-        activeMembers: borrowedBooks + overdueBooks
+        activeMembers: borrowedBooks + overdueBooks // assuming active means currently borrowing or overdue 
       },
       charts: {
         categoryChart: Object.entries(categoryStats).map(([label, value]) => ({ label, value })),
@@ -82,9 +111,15 @@ exports.getSummary = async (req, res) => {
           { status: "Returned", count: returnedBooks },
           { status: "Overdue", count: overdueBooks }
         ]
-      }
+      },
+       highlights: {
+        mostBorrowedBooks
+  },
     });
-  } catch (error) {
+
+
+  }
+   catch (error) {
     console.error(error);
     res.status(500).json({ message: "Server error fetching summary" });
   }

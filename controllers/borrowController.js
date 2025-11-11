@@ -126,7 +126,8 @@ try {
     }
     const records = await BorrowRecord.find(query)
       .populate("user", "name email")
-      .populate("book", "title author category");
+      .populate("book", "title author category")
+      .sort({dueDate: - 1});
 
     const updates = records.map(async record => {
       const due = new Date(record.dueDate);
