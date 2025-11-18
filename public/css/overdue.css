@@ -170,13 +170,17 @@ body.dark .overdue td{
 
 .card h3 {
   font-size: 14px;
-  color: #6b7280;
+  color: var(--text);
 }
 
 .card p {
   font-size: 20px;
   font-weight: bold;
-  color: var(--text);
+  color: var(--accent);
+}
+
+body.dark .card p {
+  color: #60a5fa;
 }
 /*=============TABLE STYLE===============*/
 

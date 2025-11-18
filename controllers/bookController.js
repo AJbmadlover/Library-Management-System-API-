@@ -5,33 +5,40 @@ const Book = require("../models/bookModel");
 // @access private
 exports.getAllBooks = async (req, res) => {
   try {
-    const { search } = req.query;
+    const { page = 1, limit = 5, search = "" } = req.query;
+    const skip = (page - 1) * limit;
 
-    if (!search) {
-      const allBooks = await Book.find({ isDeleted: false }).sort({ createdAt: -1 }); // ✅ fixed
-      return res.status(200).json(allBooks);
-    }
-
-    // Otherwise, search by title, author, or category
-    const books = await Book.find({
-      isDeleted: false,
-      $or: [
+    // Build query
+    let query = { isDeleted: false };
+    if (search) {
+      query.$or = [
         { title: { $regex: search, $options: "i" } },
         { author: { $regex: search, $options: "i" } },
         { category: { $regex: search, $options: "i" } },
-      ],
-    });
-
-    if (books.length === 0) {
-      return res.status(404).json({ message: "No books found" });
+      ];
     }
 
-    res.status(200).json(books);
+    // Get total count
+    const total = await Book.countDocuments(query);
+
+    // Fetch books with pagination
+    const books = await Book.find(query)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(Number(limit));
+
+    res.status(200).json({
+      books,                      // can be empty array if none found
+      total,                      // total matching books
+      page: Number(page),         // current page
+      totalPages: Math.ceil(total / limit), // total pages
+    });
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "Server error" });
   }
 };
+
 
 
 // @desc Get a single book by ID

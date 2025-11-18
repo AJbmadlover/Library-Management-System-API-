@@ -182,7 +182,7 @@ tr:hover {
 }
 /*===========EDIT AND DELETE BUTTON=========*/
 button {
-  background: #2563eb; 
+  background: #2563eb;
   color: #fff;
   border: none;
   padding: 0.7rem 1.5rem;
@@ -190,22 +190,57 @@ button {
   cursor: pointer;
   font-weight: 500;
   transition: background 0.2s ease;
-  margin:2px;
-
+  margin: 2px;
 }
-.edit{
+
+/* Hover only for NORMAL buttons (exclude pagination buttons) */
+button:not(.page-btn):hover {
+  background: hsla(220, 47%, 62%, 0.900);
+}
+
+/* Edit + Delete specific */
+.edit {
   background: #2563eb;
 }
-.delete{
-  background: hsla(0, 90%, 33%, 0.900);  
-}
-.delete:hover{
-  background: hsla(0, 90%, 23%, 0.900);  
-}
-button:hover {
-  background: hsla(220, 47%, 62%, 0.900)
+
+.delete {
+  background: hsla(0, 90%, 33%, 0.900);
 }
 
+.delete:hover {
+  background: hsla(0, 90%, 23%, 0.900);
+}
+
+
+
+/* ================= PAGINATION ================= */
+.pagination {
+  margin-top: 1rem;
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.page-btn {
+  padding: 0.3rem 0.6rem;
+  border: 1px solid #ccc;
+  background-color: #f9f9f9;
+  cursor: pointer;
+  border-radius: 4px;
+  color:#000;
+}
+
+/* Active page */
+.page-btn.active {
+  background-color: #007bff;
+  color: white;
+  border-color: #007bff;
+}
+
+/* Hover for non-active page button */
+.page-btn:hover:not(.active) {
+  background-color: #e0e0e0;
+}
 
 /* ========== ADD BOOKS FORM ========== */
 .add-books {

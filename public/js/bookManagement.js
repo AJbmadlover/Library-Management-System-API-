@@ -53,9 +53,6 @@ const headers = returnHeader();
 // ================Load books (for table)==============================
 
 let allBooks = []; // empty array to keep books for later 
-let showingAll = false; // toggle state
-const toggleBtn = document.getElementById("toggleBooks");
-
   try{
       const booksRes = await fetch("/api/books", { headers });
       if (!booksRes.ok) throw new Error("Failed to fetch books");
@@ -66,36 +63,21 @@ const toggleBtn = document.getElementById("toggleBooks");
     console.error(error);
   }
 
-
-  // === 🧾 RENDER TRANSACTIONS TABLE ==============================
 function renderBooks(books) {
   booksTable.innerHTML = "";
 
   if (!books.length) {
-    booksTable.innerHTML =
-      '<tr><td colspan="6">No books found</td></tr>';
+    booksTable.innerHTML = '<tr><td colspan="6">No books found</td></tr>';
     return;
   }
 
-  // ✅ Sort by createdAt (newest first)
-  const sortedBooks = books.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  const fragment = document.createDocumentFragment();
 
-  // ✅ Show either 5 or all based on toggle state
-    const visibleBooks = sortedBooks.filter(book => !book.isDeleted);
-    const displayBooks = showingAll ? visibleBooks : visibleBooks.slice(0, 5);
-// Create a fragment to minimize DOM updates...  instead of the DOM being refreshed every time the a new row is rendered the fragment will be updated instead 
-    const fragment = document.createDocumentFragment();
-
-  
-  displayBooks.forEach((book) => {
-
-
+  books.forEach((book) => {
     const tr = document.createElement("tr");
     const date = new Date(book.createdAt).toLocaleDateString();
-    const appendCategory =
-    book.category.charAt(0).toUpperCase() +
-    book.category.slice(1).toLowerCase();
-    
+    const appendCategory = book.category.charAt(0).toUpperCase() + book.category.slice(1).toLowerCase();
+
     tr.innerHTML = `
       <td>${book.title}</td>
       <td>${book.author}</td>
@@ -107,21 +89,11 @@ function renderBooks(books) {
         <button class="delete" data-id="${book._id}">🗑</button>
       </td>
     `;
-    fragment.appendChild(tr); //so we append the table row in the fragment then... we append the table with the fragment.
-
+    fragment.appendChild(tr);
   });
 
   booksTable.appendChild(fragment);
-
-  // Update button text based on state
-  toggleBtn.textContent = showingAll ? "Show Less" : "Show More"; 
 }
-
-toggleBtn.addEventListener("click", () => {
-  showingAll = !showingAll;
-  renderBooks(allBooks);
-});
-
 
 form.addEventListener("submit", async (e) => {
   e.preventDefault();
@@ -194,8 +166,73 @@ form.addEventListener("submit", async (e) => {
     submitBtn.disabled = false;
   }
 });
+const pagination = document.querySelector(".pagination");
+let currentPage = 1;
+const limit = 5; // books per page
+let totalPages = 1; // will be set dynamically
 
+async function loadPage(page = 1, search = "") {
+  currentPage = page;
+  try {
+    const res = await fetch(`/api/books?page=${page}&limit=${limit}&search=${encodeURIComponent(search)}`, { headers });
+    if (!res.ok) throw new Error("Failed to fetch books");
 
+    const data = await res.json();
+    const books = data.books || [];
+
+    totalPages = data.totalPages || 1;
+
+    renderBooks(books);
+    renderPagination();
+  } catch (err) {
+    console.error(err);
+    showError(err.message || "Error loading books.");
+  }
+}
+
+function renderPagination() {
+  if (!pagination) return;
+
+  pagination.innerHTML = "";
+
+  // Hide if only 1 page
+  if (totalPages <= 1) return;
+
+  // Prev button
+  const prevBtn = document.createElement("button");
+  prevBtn.classList.add("page-btn")
+  prevBtn.textContent = "Prev";
+  prevBtn.disabled = currentPage === 1;
+  prevBtn.addEventListener("click", () => loadPage(currentPage - 1));
+  pagination.appendChild(prevBtn);
+
+  // Page numbers
+  for (let i = 1; i <= totalPages; i++) {
+    const pageBtn = document.createElement("button");
+    pageBtn.classList.add("page-btn")
+    pageBtn.textContent = i;
+    if (i === currentPage) pageBtn.classList.add("active");
+    pageBtn.addEventListener("click", () => loadPage(i));
+    pagination.appendChild(pageBtn);
+  }
+
+  // Next button
+  const nextBtn = document.createElement("button");
+  nextBtn.classList.add("page-btn")
+  nextBtn.textContent = "Next";
+  nextBtn.disabled = currentPage === totalPages;
+  nextBtn.addEventListener("click", () => loadPage(currentPage + 1));
+  pagination.appendChild(nextBtn);
+}
+
+// Optional: update search to reset page
+const searchInput = document.querySelector("#search"); // assuming you have one
+if (searchInput) {
+  searchInput.addEventListener("input", () => loadPage(1, searchInput.value.trim()));
+}
+
+// Initial load
+loadPage(1);
 
   // === ❌ DELETE BOOK =====================================
   booksTable.addEventListener("click", async (e) => {

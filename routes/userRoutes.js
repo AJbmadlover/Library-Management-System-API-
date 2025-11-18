@@ -1,7 +1,7 @@
 // routes/authRoutes.js
 const express = require("express");
 const router = express.Router();
-const { profile, signup, signin, getUserProfileByAdmin, logout } = require("../controllers/userController");
+const { profile, signup, signin, getUserProfileByAdmin, logout,getUsers, getUserDetails } = require("../controllers/userController");
 const { protect,adminOnly } = require("../middleware/authMiddleware");
 
 router.post("/signup", signup);
@@ -11,4 +11,6 @@ router.post("/logout", protect, logout); //logout
 
 // Admin: view any user’s profile + fine details
 router.get("/:userId/profile", protect, adminOnly, getUserProfileByAdmin);
+router.get("/userdetails", protect, adminOnly, getUsers)
+router.get("/userdetails/:userId", protect, adminOnly, getUserDetails)
 module.exports = router;

@@ -61,7 +61,40 @@ try {
 
   console.log("working");
 
+const errorBox = document.querySelector(".error-message");
+const successBox = document.querySelector(".success-message");
+function showError(message) {
+    if (errorBox) {
+      errorBox.textContent = message;
+      errorBox.style.display = message ? "block" : "none";
+
+      if (message) {
+      setTimeout(() => {
+        errorBox.style.display = "none";
+      }, 3000);
+    }
+    } else if (message) {
+      console.error(message);
+    }
 }
+
+function showSuccess(message) {
+    if (successBox) {
+      successBox.textContent = message;
+      successBox.style.display = message ? "block" : "none";
+
+      if (message) {
+      setTimeout(() => {
+        successBox.style.display = "none";
+      }, 3000);
+    }
+    } else if (message) {
+      alert(message);
+    }       
+}
+}
+
+
 
 export function returnHeader(){
   // --- 🔐 Retrieve JWT token from localStorage or sessionStorage
@@ -69,7 +102,7 @@ export function returnHeader(){
     localStorage.getItem("token") || sessionStorage.getItem("token");
 
   if (!token) {
-    window.location.href = "/api/users/signin";
+    window.location.href = "/api/users/login";
     return;
   }
   //includes token in header for authorization

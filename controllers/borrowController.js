@@ -274,6 +274,32 @@ exports.updateBorrowRecord = async (req, res) => {
   }
 };
 
+//==============GET OVERDUE RECORDS=============
+
+// Utility function to format overdue record output
+function formatOverdueRecords(records, now) {
+  return records.map((record) => {
+    const due = new Date(record.dueDate);
+    const daysLate = Math.floor((now - due) / (1000 * 60 * 60 * 24));
+    const fine =
+        Math.max(0, daysLate * 100); // ₦100/day
+    return {
+      id: record._id,
+      user: {
+        name: record.user.name,
+        email: record.user.email,
+      },
+      book: {
+        title: record.book.title,
+        author: record.book.author,
+        category: record.book.category,
+      },
+      due, 
+      daysLate, 
+      fine,
+    };
+  });
+}
 
 // @desc Get all overdue borrow records
 // @route GET /api/borrow/overdue
@@ -290,39 +316,86 @@ exports.getAllOverdueRecords = async (req, res) => {
       .populate("book", "title author category")
       .populate("user", "name email");
 
-    if (overdueRecords.length === 0)
-      return res.status(200).json({ message: "No overdue books currently." });
-
-    // Optionally recalc fine
-    const records = overdueRecords.map((record) => {
-      const fine = record.fineAmount
-        ? record.fineAmount
-        : Math.max(0, Math.floor((now - record.dueDate) / (1000 * 60 * 60 * 24)) * 100); // static ₦100/day
-      return {
-        id: record._id,
-        user: {
-          name: record.user.name,
-          email: record.user.email,
-        },
-        book: {
-          title: record.book.title,
-          author: record.book.author,
-          category: record.book.category,
-        },
-        dueDate: record.dueDate,
-        daysLate: Math.floor((now - record.dueDate) / (1000 * 60 * 60 * 24)),
-        fine,
-      };
-    });
+     const formatted = formatOverdueRecords(overdueRecords, now);
 
     res.status(200).json({
-      totalOverdue: records.length,
-      records,
+      totalOverdue: formatted.length,
+      records: formatted,
+    });
+
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// @desc search for overdue borrow records by name or title
+// @route GET /api/borrow/overdue/search
+// @access Admin
+
+exports.getOverdueByNameOrTitle = async (req, res) => {
+  try {
+    const { name, book } = req.query;
+    const now = new Date();
+
+    // Require at least one search term
+    if (!name && !book) {
+      return res.status(400).json({ message: "Please enter a name or book title to search." });
+    }
+
+    // Base overdue condition
+    const baseQuery = {
+      status: { $in: ["borrowed", "overdue"] },
+      dueDate: { $lt: now },
+    };
+
+    const orConditions = [];
+
+    // Lookup user IDs if name is provided
+    if (name) {
+      const users = await User.find({ name: new RegExp(name, "i") }, "_id");
+      if (users.length > 0) {
+        orConditions.push({ user: { $in: users.map(u => u._id) } });
+      }
+    }
+
+    // Lookup book IDs if book title is provided
+    if (book) {
+      const books = await Book.find({ title: new RegExp(book, "i") }, "_id");
+      if (books.length > 0) {
+        orConditions.push({ book: { $in: books.map(b => b._id) } });
+      }
+    }
+
+    // If search terms entered but no matching users or books found
+    if (orConditions.length === 0) {
+      return res.status(200).json({ message: "No overdue books matching that user or title." });
+    }
+
+    // Combine baseQuery with OR search logic
+    const query = { ...baseQuery, $or: orConditions };
+
+    const filteredRecords = await BorrowRecord.find(query)
+      .populate("book", "title author category")
+      .populate("user", "name email");
+
+    if (filteredRecords.length === 0) {
+      return res.status(200).json({
+        message: "No overdue books matching that user or title.",
+      });
+    }
+    
+    const formatted = formatOverdueRecords(filteredRecords, now);
+
+    res.status(200).json({
+      totalOverdue: formatted.length,
+      records: formatted,
     });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 };
+
+
 
 // GET /api/borrow/user/:id
 exports.viewAllUsersBorrowHistory = async(req,res)=>{    

@@ -39,61 +39,83 @@ exports.getSummary = async (req, res) => {
       : {};
 
     // 📊 Parallel DB calls for efficiency
-    const [totalUsers, totalBooks, borrowRecords, mostBorrowedBooks] = await Promise.all([
+    const [
+      totalUsers,
+      totalBooks,
+      borrowRecords,
+      mostBorrowedBooks,
+
+      //users = used to compute "joined this month"
+      users
+    ] = await Promise.all([
       User.countDocuments(),
       Book.countDocuments(),
       BorrowRecord.find(filter).populate("book", "category title"),
       BorrowRecord.aggregate([
-    Object.keys(dateFilter).length 
-      ? { $match: { borrowDate: dateFilter } }
-      : { $match: {} },
-    { $group: { _id: "$book", borrowCount: { $sum: 1 } } },
-    { $sort: { borrowCount: -1 } }, //sort by highest count 
-    { $limit: 5 }, //top 5 most borrowed books
-    {
-      $lookup: {
-        from: "books",
-        localField: "_id",
-        foreignField: "_id",
-        as: "bookInfo"
-      }
-    },
-    { $unwind: "$bookInfo" },
-    {
-      $project: {
-        _id: 0,
-        bookId: "$bookInfo._id", //display book id too
-        title: "$bookInfo.title", //display book title
-        category: "$bookInfo.category",//display book category
-        borrowCount: 1
-      }
-    }
-  ])
-]);
+        Object.keys(dateFilter).length
+          ? { $match: { borrowDate: dateFilter } }
+          : { $match: {} },
+        { $group: { _id: "$book", borrowCount: { $sum: 1 } } },
+        { $sort: { borrowCount: -1 } },
+        { $limit: 5 },
+        {
+          $lookup: {
+            from: "books",
+            localField: "_id",
+            foreignField: "_id",
+            as: "bookInfo"
+          }
+        },
+        { $unwind: "$bookInfo" },
+        {
+          $project: {
+            _id: 0,
+            bookId: "$bookInfo._id",
+            title: "$bookInfo.title",
+            category: "$bookInfo.category",
+            borrowCount: 1
+          }
+        }
+      ]),
+      User.find({}, "createdAt _id")
+    ]);
 
+    // 🆕 NEW: Users who joined this month
+    const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const firstDayOfNextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+    
+    const usersJoinedThisMonth = users.filter(u =>{
+      const created = new Date(u.createdAt);
+      created >= firstDayOfMonth && created < firstDayOfNextMonth
+  }).length;
+
+    // 🆕 NEW: Unique users who have overdue books
+    const overdueUserIds = await BorrowRecord.distinct("user", {
+      dueDate: { $lt: new Date() },
+      status: "overdue"
+    });
+    const usersWithOverdue = overdueUserIds.length;
 
     // 🧮 Compute analytics
     const borrowedBooks = borrowRecords.filter(b => b.status === "borrowed").length;
     const overdueBooks = borrowRecords.filter(b => b.status === "overdue").length;
     const returnedBooks = borrowRecords.filter(b => b.status === "returned").length;
 
-    // Category distribution (for pie chart)
+    // Category distribution
     const categoryStats = {};
     borrowRecords.forEach(rec => {
       const category = rec.book?.category || "Uncategorized";
       categoryStats[category] = (categoryStats[category] || 0) + 1;
     });
 
-    // Monthly trend (for bar/line chart)
+    // Monthly trend
     const monthlyStats = {};
     borrowRecords.forEach(rec => {
       const month = new Date(rec.borrowDate).toLocaleString("default", { month: "short" });
       monthlyStats[month] = (monthlyStats[month] || 0) + 1;
     });
 
-
-
-    // 📦 Prepare API response
+    // 📦 Response
     res.status(200).json({
       stats: {
         totalUsers,
@@ -101,7 +123,11 @@ exports.getSummary = async (req, res) => {
         borrowedBooks,
         overdueBooks,
         returnedBooks,
-        activeMembers: borrowedBooks + overdueBooks // assuming active means currently borrowing or overdue 
+        activeMembers: borrowedBooks + overdueBooks,
+
+        // 🔥 NEW
+        usersJoinedThisMonth,
+        usersWithOverdue
       },
       charts: {
         categoryChart: Object.entries(categoryStats).map(([label, value]) => ({ label, value })),
@@ -112,14 +138,12 @@ exports.getSummary = async (req, res) => {
           { status: "Overdue", count: overdueBooks }
         ]
       },
-       highlights: {
+      highlights: {
         mostBorrowedBooks
-  },
+      }
     });
 
-
-  }
-   catch (error) {
+  } catch (error) {
     console.error(error);
     res.status(500).json({ message: "Server error fetching summary" });
   }

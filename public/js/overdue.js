@@ -59,25 +59,16 @@ catch(error){
 }
 setInterval(getOverDueCount, 2000);
 
-
-//TABLE DATA 
+ 
 // TABLE DATA
 const tableBody = document.querySelector(".overdue tbody");
+const searchBar = document.getElementById("tableFilter");
+let allrecords= [];
 
-async function renderTable() {
+async function renderTable(records) {
     if (!tableBody) return;
 
-try {
-  const res = await fetch("/api/overdue", { headers });
-  if (!res.ok) {
-    showError(`Failed to load overdue list (${res.status})`);
-    return;
-  }
-
-  const result = await res.json();
-  const records = result.records;
-
-  if (records.length === 0) {
+    if (!records || records.length === 0) {
     tableBody.innerHTML = '<tr><td colspan="6">No Activity</td></tr>';
   } else {
     tableBody.innerHTML = ""; // clear old rows
@@ -119,15 +110,74 @@ Thank you.`
       });
     });
   }
-} catch (err) {
+}
+
+//===========FETCH ALL OVERDUERECORDS==========
+async function getAllRecords(){
+  try {
+  const res = await fetch("/api/overdue", { headers });
+  if (!res.ok) {
+    showError(`Failed to load overdue list (${res.status})`);
+    return;
+  }
+
+  const result = await res.json();
+  allrecords = result.records;
+  renderTable(allrecords);
+}
+
+catch (err) {
   console.error(err);
   showError("Something went wrong while loading overdue records.");
 }
+}
+getAllRecords();
+// ======================= SEARCH FOR RECORD BY NAME OR TITLE=======================
+async function searchOverdue(query) {
+  query = query.trim();
 
+  // If input is empty, show all records
+  if (!query) {
+    renderTable(allrecords);
+    return;
+  }
+
+  try {
+    const res = await fetch(`/api/overdue/search?name=${encodeURIComponent(query)}&book=${encodeURIComponent(query)}`, { headers });
+    
+    if (!res.ok) {
+      console.error(`Search request failed with status ${res.status}`);
+      showError("Something went wrong while searching.");
+      return;
+    }
+
+    const data = await res.json();
+
+    // If backend returned a message (no records)
+    if (data.message) {
+      tableBody.innerHTML = `<tr><td colspan="6">${data.message}</td></tr>`;
+      return;
+    }
+
+    // Otherwise render records
+    renderTable(data.records || []);
+    
+  } catch (err) {
+    console.error(err);
+    showError("Something went wrong while searching.");
+  }
 }
 
-renderTable();
-setInterval(renderTable, 5000);
+//===================TO USE SEARCH INPUT====================
+searchBar.addEventListener("input", (e) => {
+  const query = e.target.value;
+  searchOverdue(query);
+});
+
+//==================RELOAD ALL OVERDUE RECORD AFTER SEARCH(10SECS LIMIT)====================
+
+setInterval(getAllRecords, 10000);
+
 // === Show More / Show Less Toggle ===
 const toggleBtn = document.getElementById("toggleRecords");
 let showingAll = false;

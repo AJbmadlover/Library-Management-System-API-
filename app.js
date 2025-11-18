@@ -4,6 +4,8 @@ const dotenv = require("dotenv");
 const connectDB = require("./config/db");
 const fs = require('fs');
 const path = require('path');
+require("./utils/cronJob")// Import cron jobs to run them
+
 
 // Load environment variables
 dotenv.config();
@@ -31,22 +33,18 @@ app.use("/api/summary", summaryRoutes); //admin only route
 
 // 🔹 Frontend routes
 
-// You can add more static pages later (dashboard, profile, etc.)
 app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "index.html"));
 });
 
-// When you go to localhost:5000/signup → loads signup.html
 app.get("/api/users/signup", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "signup.html"));
 });
 
-// When you go to localhost:5000/signin → loads signin.html
 app.get("/api/users/login", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "login.html"));
 });
 
-// When you go to localhost:5000/about → loads signin.html
 app.get("/api/about", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "about.html"));
 });
@@ -59,6 +57,9 @@ app.get("/api/users/admin/dashboard", (req,res)=>{
   res.sendFile(path.join(__dirname, "public", "adminDash.html"));
 })
 
+app.get("/api/users/admin/usermanagement", (req,res)=>{
+  res.sendFile(path.join(__dirname, "public", "userManagement.html"));
+})
 
 app.get("/api/users/admin/bookmanagement", (req,res)=>{
   res.sendFile(path.join(__dirname, "public", "bookManagement.html"));
